@@ -1,0 +1,587 @@
+---
+title: "IDS 570 Data Exploration (Structured)"
+author: "Muhammad Baqir"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+---
+
+## Setup
+
+```{r}
+#| label: setup
+
+library(tidyverse)          # data handling and plots (includes readr, dplyr, stringr, ggplot2)
+library(quanteda)           # corpus, tokens, DFM, TF-IDF
+library(quanteda.textstats) # Pearson correlation between documents
+library(tidytext)           # tidy text tools
+library(udpipe)             # dependency parser for syntax (Approach 3)
+library(knitr)              # nice tables
+```
+
+
+## Step 0: Reading and Cleaning the Corpus
+
+### Reading the texts
+```{r}
+#| label: read-texts
+
+file_paths <- list.files("Files", pattern = "\\.txt$", full.names = TRUE)  # find every .txt file in Files/
+
+corpus_df <- tibble(
+  doc_id = tools::file_path_sans_ext(basename(file_paths)),  # file name without ".txt"
+  text   = map_chr(file_paths, read_file)                    # read each file as one long string
+)
+
+nrow(corpus_df)  # should print 23
+```
+
+```{r}
+#| label: short-labels
+
+corpus_df <- corpus_df %>%
+  mutate(doc_id = recode(doc_id,
+    "A07594__Circle_of_Commerce" = "A07594_Circle",
+    "B14801__Free_Trade"         = "B14801_FreeTrade",
+    "wealth"                     = "Smith_Wealth"
+  ))
+
+corpus_df$doc_id  # print all 23 names
+```
+### Normalizing the long S
+
+```{r}
+#| label: long-s
+
+corpus_df <- corpus_df %>%
+  mutate(
+    text_original = text,                       # keep an untouched copy
+    long_s_before = str_count(text, "ſ"),       # how many long S before
+    text          = str_replace_all(text, "ſ", "s"),
+    long_s_after  = str_count(text, "ſ"),       # should be 0 everywhere
+    n_words       = str_count(text, "\\S+")     # rough word count per text
+  )
+
+corpus_df %>%
+  select(doc_id, n_words, long_s_before, long_s_after) %>%
+  arrange(desc(n_words)) %>%
+  kable(col.names = c("Document", "Words", "Long S before", "Long S after"))
+```
+
+### Removing illegible characters
+
+```{r}
+#| label: illegible
+
+corpus_df <- corpus_df %>%
+  mutate(
+    illegible_before = str_count(text, "●"),
+    text             = str_replace_all(text, "\\S*●\\S*", " "),  # delete any word containing ●
+    illegible_after  = str_count(text, "●")
+  )
+
+corpus_df %>%
+  filter(illegible_before > 0) %>%
+  select(doc_id, illegible_before, illegible_after) %>%
+  kable(col.names = c("Document", "● before", "● after"))
+```
+
+```{r}
+#| label: old-spelling-check
+
+old_spelling <- "\\b(vnto|haue|giue|vpon|vs|ouer|euery|neuer)\\b"
+
+corpus_df %>%
+  mutate(old_spellings = str_count(text, regex(old_spelling, ignore_case = TRUE))) %>%
+  select(doc_id, old_spellings) %>%
+  arrange(desc(old_spellings)) %>%
+  head(5) %>%
+  kable(col.names = c("Document", "Old-spelling words (sample list)"))
+```
+
+### Normalization choices
+
+The only required change was the long S. The long S (ſ) appears in only one text, *The Circle of Commerce* (A07594), where it occurs 4,517 times. Every instance was replaced with a regular "s", and the count afterwards is zero in every document. The other 22 texts already use a modern "s".
+
+Beyond this, I made one additional change. Thirteen texts contain the character ●, which marks a letter that could not be read when the original printed book was transcribed (for example, "g●●neral"). If left in, these words would break into meaningless fragments such as "g" and "neral", which could then appear as falsely "distinctive" terms in TF-IDF. I removed every word containing ●. There were 651 such marks in a corpus of roughly 972,000 words, so the loss of real content is negligible.
+
+I chose not to normalize u/v, i/j, or other spelling variants. Only two texts, *The Circle of Commerce* and *Free Trade* (B14801), keep Early Modern spellings such as "vnto", "haue" and "giue" (359 and 249 occurrences of a small sample list of such words, compared with 0 to 2 in every other text). The rest of the corpus has already been modernized. A blanket rule such as "replace v with u" would fix "vnto" but would also corrupt modern words, turning "value" into "ualue". Instead, I added the most frequent old-spelling function words to the stopword list (see Approach 1), which removes them without rewriting the texts. The risk of this choice is that old spellings of content words remain, which may make these two texts look lexically distinctive for spelling reasons rather than for what they actually say. I keep this risk in mind when interpreting the TF-IDF and Pearson results.
+
+
+## Approach 1: TF-IDF (Lexical Distinctiveness)
+
+```{r}
+#| label: tokens
+
+corp <- corpus(corpus_df, docid_field = "doc_id", text_field = "text")
+
+toks <- tokens(
+  corp,
+  remove_punct   = TRUE,
+  remove_numbers = TRUE,
+  remove_symbols = TRUE
+) %>%
+  tokens_tolower()
+
+custom_stop <- c(
+  "vnto", "haue", "giue", "vpon", "ouer", "euery", "neuer", "doe", "bee", "hee",
+  "wee", "mee", "shee", "beene", "doth", "hath", "hast", "thee", "thou", "thy",
+  "unto", "upon", "thereof", "therein", "thereby", "whereof", "wherein", "whereby",
+  "shall", "may", "also", "thus", "yet"
+)
+
+toks <- toks %>%
+  tokens_remove(pattern = c(stopwords("en"), custom_stop)) %>%
+  tokens_select(min_nchar = 3)   # keep only words with 3 or more letters
+```
+
+
+```{r}
+#| label: dfm
+
+dfm_counts <- dfm(toks)
+
+dim(dfm_counts)             # number of documents, number of unique words
+topfeatures(dfm_counts, 20) # most frequent words across the whole corpus
+```
+
+```{r}
+#| label: tfidf
+
+dfm_tfidf_w <- dfm_tfidf(dfm_counts)   # TF-IDF weighted version of the DFM
+
+topfeatures(dfm_tfidf_w, 20)           # highest TF-IDF words overall
+```
+
+```{r}
+#| label: tfidf-top15
+
+tfidf_long <- as.matrix(dfm_tfidf_w) %>%
+  as_tibble(rownames = "document") %>%
+  pivot_longer(-document, names_to = "term", values_to = "tfidf") %>%
+  filter(tfidf > 0)
+
+top_tfidf <- tfidf_long %>%
+  group_by(document) %>%
+  slice_max(tfidf, n = 15, with_ties = FALSE) %>%
+  ungroup()
+
+top_tfidf_wide <- top_tfidf %>%
+  group_by(document) %>%
+  summarise(top_terms = paste(term, collapse = ", "), .groups = "drop")
+
+top_tfidf_wide %>%
+  kable(col.names = c("Document", "Top 15 TF-IDF terms (highest first)"))
+```
+
+```{r}
+#| label: tfidf-save
+
+write_csv(top_tfidf, "outputs/tfidf_top15_scores.csv")
+write_csv(top_tfidf_wide, "outputs/tfidf_top15_table.csv")
+```
+
+### Interpretation
+
+**Do some documents share distinctive vocabulary?**
+
+Yes. Three pairs share most of their top terms. 
+A32827 and A32833 (plantations, usury, interest, new-england, newfoundland), A32839 and A69858 (east-india, surat, bengall, charter, company), and A32836 and A50763 (poor, parish, fathers, hospitals, election). 
+Overlap this strong suggests these may be versions of the same text, which Approach 2 checks. 
+Looser groups also appear. A06785, A06786, A06788, A06789 and A06791 share money and exchange terms (moneys, exchange, starlin, doller, shillings, ounces), and A07886, A32830, A32838, A32839 and A69858 share terms about India (india, east-india, surat, bombay). 
+Two documents also seem to point at each other. "malynes" is the top term of A07594_Circle, while "misselden" and "circle" are top terms of A06785.
+
+**Are the distinctive terms topical, rhetorical, or technical?**
+
+Mostly technical and topical. The technical terms are units, coins and goods (ounces, carrats, ducats, shillings, indigo, muslins, wool). 
+The topical terms are mostly places and institutions (india, bombay, new-england, parish, hospitals, company). 
+A few look rhetorical, such as "arg" and "answ" (argument and answer) in A32839 and A69858, and "propose" and "objection" in other lists. A06790 is unusual. Its list (monster, dragon, moon, hell, visions) has no economic vocabulary at all.
+
+**Is any document's distinctiveness driven by noise or formatting?**
+
+Yes, in three ways. 
+First, the lists for A07594_Circle (kingdome, mony, ballance, forraine) and B14801_FreeTrade (kingdome, forreine, gouernment, subiects) are mostly old spellings of ordinary words. The old-spelling check in Step 0 shows that these are the only two texts with many such spellings, so they stand out because of spelling rather than content. 
+Second, "non-latin" and "alphabet" in B14801_FreeTrade look like a note added during digitization, not the author's own words. 
+Third, abbreviations such as "2dly", "pag" and "etc" in A32827 and A32833 reflect printing conventions rather than the argument.
+
+One caution: this TF-IDF uses raw counts, so long texts such as Smith_Wealth (381,076 words) get much higher scores. The scores are good for ranking terms within one document, but not for comparing across documents.
+
+
+
+## Approach 2: Pearson Correlation (Similarity Between Texts)
+
+```{r}
+#| label: dfm-trim
+
+dfm_trim5 <- dfm_trim(dfm_counts, min_termfreq = 5)
+
+dim(dfm_counts)  # before trimming
+dim(dfm_trim5)   # after trimming
+```
+
+```{r}
+#| label: pearson
+
+sim_r <- textstat_simil(dfm_trim5, margin = "documents", method = "correlation")
+
+r_mat <- as.matrix(sim_r)   # convert to a normal 23 x 23 matrix
+r_mat <- round(r_mat, 3)    # round for readability (cosmetic only)
+
+dim(r_mat)
+r_mat[1:5, 1:5]
+```
+
+```{r}
+#| label: heatmap
+#| fig-width: 10
+#| fig-height: 9
+
+heat_df <- as.data.frame(r_mat) %>%
+  rownames_to_column("doc_i") %>%                              # first document in the pair
+  pivot_longer(-doc_i, names_to = "doc_j", values_to = "r")    # second document + correlation
+
+heatmap_plot <- ggplot(heat_df, aes(x = doc_j, y = doc_i, fill = r)) +
+  geom_tile() +
+  coord_fixed() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  labs(
+    title = "Pearson Correlation Between Documents",
+    x = NULL, y = NULL, fill = "Correlation"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid  = element_blank()
+  )
+
+heatmap_plot
+
+ggsave("outputs/pearson_heatmap.png", heatmap_plot, width = 10, height = 9, dpi = 300)
+```
+
+
+```{r}
+#| label: top-bottom-pairs
+
+pairs_df <- heat_df %>%
+  filter(doc_i < doc_j) %>%
+  arrange(desc(r))
+
+pairs_df %>%
+  slice_head(n = 5) %>%
+  kable(col.names = c("Document 1", "Document 2", "Pearson r"),
+        caption = "Most similar document pairs")
+
+pairs_df %>%
+  slice_tail(n = 5) %>%
+  kable(col.names = c("Document 1", "Document 2", "Pearson r"),
+        caption = "Least similar document pairs")
+
+write_csv(pairs_df, "outputs/pearson_pairs_ranked.csv")
+```
+
+### Interpretation
+
+After removing words used fewer than 5 times in the whole corpus, the vocabulary drops from 23,823 to 7,571 words. All correlations are positive (0.128 to 1.000), so every document shares some vocabulary with every other one. That is why the heatmap has no blue.
+
+**Most similar pairs**
+
+The two most similar pairs are A32827 and A32833 (r = 1.000) and A32836 and A50763 (r = 0.981), followed by A32839 and A69858 (r = 0.928). These are the same pairs that had nearly identical TF-IDF lists, and A32827 and A32833 are also almost the same length (49,937 and 50,009 words), so they are most likely two versions of the same text. Among clearly separate documents, the most similar pairs are A06785 and A06789 (r = 0.881) and A06789 and A06791 (r = 0.851). Both belong to the money and exchange group from Approach 1, which shows up as a dark block in the lower-left corner of the heatmap.
+
+**Least similar pairs**
+
+The two least similar pairs are A06791 and A93819 (r = 0.128) and A06790 and A93819 (r = 0.141). In fact, A93819 appears in all five of the lowest pairs and is the palest row in the heatmap. It is the shortest document (2,567 words), and its TF-IDF terms (lion-key, stairs, defendant, wharfige, wharves, thames) point to a legal dispute about a specific place rather than trade or money. A06790, whose TF-IDF list had no economic terms, is also pale throughout.
+
+**What questions would I ask next?**
+
+1. *Are the near-identical pairs duplicates?* If so, they make some clusters look tighter than they really are. I would check their titles and dates and keep only one copy of each.
+2. *How much does spelling drive similarity?* A07594_Circle and B14801_FreeTrade form a dark pair, and they are the only two texts with many old spellings. Normalizing their spelling and recomputing r would show how much of that similarity is real.
+3. *What organizes the clusters: subject, author, or period?* The blocks match the TF-IDF topics, but they also follow the document ID series (A0678x and A328xx). Adding author and date information would show which of these matters most.
+
+
+## Approach 3: Syntactic Complexity (A06785 vs A07594_Circle)
+
+**Why these two texts?**
+
+I chose A06785 and A07594_Circle based on the results of Approaches 1 and 2. 
+In TF-IDF, each text seems to point to the other ("misselden" and "circle" are top terms in A06785, and "malynes" is the top term in A07594_Circle), and their Pearson correlation is a moderate 0.62. 
+They are also similar in length (36,387 and 33,766 words). This makes them a good test of whether two texts that look connected in vocabulary also build their sentences in the same way.
+
+```{r}
+#| label: udpipe-model
+
+model_file <- list.files(pattern = "english-ewt.*\\.udpipe$")
+
+if (length(model_file) == 0) {
+  model_info <- udpipe_download_model(language = "english-ewt")
+  model_file <- model_info$file_model
+}
+
+ud_model <- udpipe_load_model(model_file[1])
+```
+
+```{r}
+#| label: syntax-texts
+
+syntax_texts <- corpus_df %>%
+  filter(doc_id %in% c("A06785", "A07594_Circle")) %>%
+  select(document = doc_id, text, n_words)
+
+syntax_texts %>%
+  select(document, n_words) %>%
+  kable(col.names = c("Document", "Words"))
+```
+
+```{r}
+#| label: udpipe-annotate
+
+anno_file <- "outputs/udpipe_annotations.rds"
+
+if (file.exists(anno_file)) {
+  anno_df <- readRDS(anno_file)            # load the saved result (fast)
+} else {
+  anno_df <- syntax_texts %>%
+    mutate(
+      anno = map2(text, document, ~ udpipe_annotate(ud_model, x = .x, doc_id = .y) %>%
+        as.data.frame())
+    ) %>%
+    select(anno) %>%
+    unnest(anno) %>%
+    rename(document = doc_id) %>%
+    select(document, paragraph_id, sentence_id, sentence, token_id, token,
+           lemma, upos, feats, head_token_id, dep_rel)
+  saveRDS(anno_df, anno_file)              # save it so we never parse twice
+}
+
+anno_df %>%
+  group_by(document) %>%
+  summarise(
+    tokens    = n(),
+    sentences = n_distinct(sentence_id),
+    .groups = "drop"
+  ) %>%
+  kable(col.names = c("Document", "Tokens parsed", "Sentences found"))
+```
+
+```{r}
+#| label: syntax-flags
+
+syntax_df <- anno_df %>%
+  mutate(
+    is_word = upos != "PUNCT",
+
+    # finite verbs as a proxy for clauses
+    is_clause = (upos %in% c("VERB", "AUX")) &
+                str_detect(coalesce(feats, ""), "VerbForm=Fin"),
+
+    # dependent clauses
+    is_dep_clause = dep_rel %in% c("advcl", "ccomp", "xcomp", "acl", "acl:relcl"),
+
+    # coordination ("and", "or", and the items they join)
+    is_coord = dep_rel %in% c("conj", "cc"),
+
+    # relations that make noun phrases more complex
+    is_complex_nominal = dep_rel %in% c("amod", "nmod", "compound", "appos")
+  )
+```
+
+
+```{r}
+#| label: syntax-measures
+
+sentence_df <- syntax_df %>%
+  filter(is_word) %>%
+  group_by(document, sentence_id) %>%
+  summarise(
+    words       = n(),
+    clauses     = sum(is_clause),
+    dep_clauses = sum(is_dep_clause),
+    .groups = "drop"
+  )
+
+# 1. Mean Length of Sentence
+mls_df <- sentence_df %>%
+  group_by(document) %>%
+  summarise(MLS = mean(words), .groups = "drop")
+
+# 2. Clauses per sentence
+clausal_density_df <- sentence_df %>%
+  group_by(document) %>%
+  summarise(
+    sentences = n(),
+    clauses   = sum(clauses),
+    C_per_S   = clauses / sentences,
+    .groups = "drop"
+  )
+
+# 3. Subordination
+subordination_df <- sentence_df %>%
+  group_by(document) %>%
+  summarise(
+    clauses     = sum(clauses),
+    dep_clauses = sum(dep_clauses),
+    sentences   = n(),
+    DC_per_C    = dep_clauses / pmax(clauses, 1),
+    DC_per_S    = dep_clauses / sentences,
+    .groups = "drop"
+  )
+
+# 4. Coordination
+coordination_df <- syntax_df %>%
+  group_by(document) %>%
+  summarise(
+    coord_relations = sum(is_coord),
+    clauses         = sum(is_clause),
+    sentences       = n_distinct(sentence_id),
+    Coord_per_C     = coord_relations / pmax(clauses, 1),
+    Coord_per_S     = coord_relations / sentences,
+    .groups = "drop"
+  )
+
+# 5. Complex nominals
+nominal_df <- syntax_df %>%
+  group_by(document) %>%
+  summarise(
+    complex_nominals = sum(is_complex_nominal),
+    clauses          = sum(is_clause),
+    sentences        = n_distinct(sentence_id),
+    CN_per_C         = complex_nominals / pmax(clauses, 1),
+    CN_per_S         = complex_nominals / sentences,
+    .groups = "drop"
+  )
+
+# Summary table
+all_measures <- mls_df %>%
+  left_join(clausal_density_df %>% select(document, C_per_S), by = "document") %>%
+  left_join(subordination_df %>% select(document, DC_per_C, DC_per_S), by = "document") %>%
+  left_join(coordination_df %>% select(document, Coord_per_C, Coord_per_S), by = "document") %>%
+  left_join(nominal_df %>% select(document, CN_per_C, CN_per_S), by = "document")
+
+all_measures %>%
+  kable(
+    digits = 2,
+    col.names = c("Document", "MLS", "C/S", "DC/C", "DC/S",
+                  "Coord/C", "Coord/S", "CN/C", "CN/S"),
+    caption = "Syntactic complexity measures"
+  )
+
+write_csv(all_measures, "outputs/syntactic_complexity_summary.csv")
+```
+
+
+### Example sentences
+
+```{r}
+#| label: example-candidates
+
+sentence_text <- anno_df %>%
+  distinct(document, sentence_id, sentence)   # full text of each sentence
+
+typical <- all_measures %>%
+  select(document, MLS, DC_per_S)
+
+set.seed(570)
+
+example_candidates <- sentence_df %>%
+  left_join(typical, by = "document") %>%
+  filter(
+    abs(words - MLS) <= 3,                  # close to the average length
+    dep_clauses == round(DC_per_S)          # typical amount of subordination
+  ) %>%
+  left_join(sentence_text, by = c("document", "sentence_id")) %>%
+  group_by(document) %>%
+  slice_sample(n = 3) %>%
+  ungroup() %>%
+  select(document, sentence_id, words, clauses, dep_clauses, sentence)
+
+example_candidates %>%
+  kable(col.names = c("Document", "Sentence ID", "Words", "Clauses",
+                      "Dependent clauses", "Sentence"))
+
+write_csv(example_candidates, "outputs/example_sentence_candidates.csv")
+```
+
+
+```{r}
+#| label: chosen-examples
+
+chosen_examples <- sentence_df %>%
+  left_join(sentence_text, by = c("document", "sentence_id")) %>%
+  filter(
+    (document == "A06785" & sentence_id == 1001) |
+    (document == "A07594_Circle" & sentence_id == 91)
+  ) %>%
+  select(document, words, clauses, dep_clauses, sentence)
+
+chosen_examples %>%
+  kable(col.names = c("Document", "Words", "Clauses", "Dependent clauses", "Sentence"),
+        caption = "Example sentences illustrating the difference in subordination")
+```
+
+### Interpretation
+
+**How do the two texts differ?** 
+
+A06785 writes longer and more layered sentences. Its sentences average 31.5 words, compared with 21.3 in A07594_Circle, and they contain almost twice as many dependent clauses (2.07 per sentence compared with 1.13). On the other measures the two texts are very close. Per clause, they use similar amounts of coordination (1.61 and 1.56) and complex nominals (2.23 and 2.14). So the clauses themselves look alike. The difference is in how many clauses each text packs into one sentence.
+
+The example sentences show this. The A06785 sentence adds two "to..." clauses onto its main statement ("to make a perfect Orb, to keep Misselden and his Balance enclosed within his own Circle"). The A07594_Circle sentence places two short statements side by side, separated by a colon.
+
+```{r}
+   r_mat["A06785", "A07594_Circle"]
+```
+
+**Does this match the lexical findings?** 
+
+Not fully. In TF-IDF the two texts point to each other ("malynes" in A07594_Circle, "misselden" and "circle" in A06785), and their Pearson correlation is 0.62. In vocabulary they look connected, but their sentence structure is clearly different. Similar words do not mean a similar writing style.
+
+**What might these patterns reflect?** 
+
+A06785's style suggests an author who builds a claim and its reasons into one long sentence. A07594_Circle's shorter sentences suggest a more direct style that makes one point at a time. These are possibilities based on averages and two example sentences, not firm conclusions.
+
+**Limitations.** 
+
+The parser was trained on modern English, so it may be less accurate on the old spellings in A07594_Circle. It also found many more sentences in A07594_Circle (1,607) than in A06785 (1,161), even though both texts have a similar number of tokens. Part of the length difference may therefore come from where the parser decided sentences end.
+
+
+
+## Synthesis
+
+**Central idea** 
+
+In this corpus, TF-IDF and Pearson correlation mostly group texts by what they talk about, and sometimes by surface features such as spelling or repeated editions. Syntax measures something different, which is how a text builds its sentences. Two texts can be close in vocabulary and still be written in clearly different ways.
+
+**TF-IDF evidence** 
+
+TF-IDF showed groups of documents with shared distinctive vocabulary: 
+
+- money and exchange (A06785, A06786, A06788, A06789, A06791)
+- India (A07886, A32830, A32838, A32839, A69858)
+- poor relief (A32836, A50763).
+
+It also showed two documents pointing at each other, with "malynes" at the top of A07594_Circle and "misselden" and "circle" among the top terms of A06785. At the same time, some distinctiveness came from surface features rather than content. There were old spellings in A07594_Circle and B14801_FreeTrade, and abbreviations such as "2dly" and "pag".
+
+**Pearson evidence** 
+
+Pearson correlation confirmed the same picture. The money-and-exchange group forms a dark block in the heatmap, and its members include the most similar pairs of clearly separate documents (A06785 and A06789, r = 0.881; A06789 and A06791, r = 0.851). The highest correlations of all (r = 1.000, 0.981 and 0.928) belong to pairs with almost identical TF-IDF lists, which look like repeated versions of the same text. The least similar document, A93819, is the one whose TF-IDF terms point to a completely different subject.
+
+**Syntax evidence.** 
+
+A06785 and A07594_Circle are connected in vocabulary, since each points to the other. Yet their syntax is clearly different. A06785's sentences are about ten words longer and contain almost twice as many dependent clauses per sentence. Per clause, however, the two texts are very similar in coordination and complex nominals. The difference is not in the words or in the clauses, but in how clauses are combined into sentences.
+
+**Strengths and weaknesses of each method.**
+
+- *TF-IDF* is good at showing what makes each document stand out, and it found topic groups and cross-references quickly. Its weakness is that it cannot tell content from noise. An old spelling or an abbreviation counts as "distinctive" just like a real topic word. Its scores also depend on document length.
+- *Pearson correlation* is good at giving an overview of the whole corpus in one picture, and it does not depend on document length. Its weakness is that a high r does not explain why two texts are similar. It cannot separate shared subject matter from shared spelling or duplicate editions, and every pair here was positively correlated, so it shows degrees of similarity rather than real opposites.
+- *Syntactic complexity* is good at capturing writing style, which the other two methods cannot see at all. Its weaknesses are that it is slow (so we could only compare two texts), the parser was trained on modern English, and the sentence counts depend on where the parser decides a sentence ends.
+
+**Conclusion.** 
+
+Used alone, the lexical methods would suggest that A06785 and A07594_Circle belong together. Syntax shows that they are connected in subject but different in style. The three methods are therefore most useful together. TF-IDF and Pearson map what the corpus talks about and flag problems in the data, while syntax tests whether texts that look alike in vocabulary are also alike in how they argue. A natural next step would be to add author and date information for each document, and to compare syntax across more texts, to see whether style follows authors, periods or topics.
+
+
+

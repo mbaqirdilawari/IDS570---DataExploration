@@ -1,0 +1,13 @@
+# Large or third-party files that the code recreates or downloads
+english-ewt-ud-2.5-191206.udpipe
+outputs/udpipe_annotations.rds
+
+# Course materials from Canvas
+Files/
+data_exploration_prompt_due9thOct.pdf
+
+# System and RStudio files
+.DS_Store
+.Rhistory
+.Rproj.user/
+.quarto/
