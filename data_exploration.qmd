@@ -16,12 +16,12 @@ execute:
 ```{r}
 #| label: setup
 
-library(tidyverse)          # data handling and plots (includes readr, dplyr, stringr, ggplot2)
-library(quanteda)           # corpus, tokens, DFM, TF-IDF
-library(quanteda.textstats) # Pearson correlation between documents
-library(tidytext)           # tidy text tools
-library(udpipe)             # dependency parser for syntax (Approach 3)
-library(knitr)              # nice tables
+library(tidyverse)          
+library(quanteda)           
+library(quanteda.textstats) 
+library(tidytext)           
+library(udpipe)             
+library(knitr)              
 ```
 
 
@@ -31,14 +31,14 @@ library(knitr)              # nice tables
 ```{r}
 #| label: read-texts
 
-file_paths <- list.files("Files", pattern = "\\.txt$", full.names = TRUE)  # find every .txt file in Files/
+file_paths <- list.files("Files", pattern = "\\.txt$", full.names = TRUE)  
 
 corpus_df <- tibble(
-  doc_id = tools::file_path_sans_ext(basename(file_paths)),  # file name without ".txt"
-  text   = map_chr(file_paths, read_file)                    # read each file as one long string
+  doc_id = tools::file_path_sans_ext(basename(file_paths)),  
+  text   = map_chr(file_paths, read_file)                    
 )
 
-nrow(corpus_df)  # should print 23
+nrow(corpus_df)  
 ```
 
 ```{r}
@@ -51,7 +51,7 @@ corpus_df <- corpus_df %>%
     "wealth"                     = "Smith_Wealth"
   ))
 
-corpus_df$doc_id  # print all 23 names
+corpus_df$doc_id  
 ```
 ### Normalizing the long S
 
@@ -60,11 +60,11 @@ corpus_df$doc_id  # print all 23 names
 
 corpus_df <- corpus_df %>%
   mutate(
-    text_original = text,                       # keep an untouched copy
-    long_s_before = str_count(text, "ſ"),       # how many long S before
+    text_original = text,                       
+    long_s_before = str_count(text, "ſ"),       
     text          = str_replace_all(text, "ſ", "s"),
-    long_s_after  = str_count(text, "ſ"),       # should be 0 everywhere
-    n_words       = str_count(text, "\\S+")     # rough word count per text
+    long_s_after  = str_count(text, "ſ"),       
+    n_words       = str_count(text, "\\S+")     
   )
 
 corpus_df %>%
@@ -81,7 +81,7 @@ corpus_df %>%
 corpus_df <- corpus_df %>%
   mutate(
     illegible_before = str_count(text, "●"),
-    text             = str_replace_all(text, "\\S*●\\S*", " "),  # delete any word containing ●
+    text             = str_replace_all(text, "\\S*●\\S*", " "),  
     illegible_after  = str_count(text, "●")
   )
 
@@ -137,7 +137,7 @@ custom_stop <- c(
 
 toks <- toks %>%
   tokens_remove(pattern = c(stopwords("en"), custom_stop)) %>%
-  tokens_select(min_nchar = 3)   # keep only words with 3 or more letters
+  tokens_select(min_nchar = 3)   
 ```
 
 
@@ -146,16 +146,16 @@ toks <- toks %>%
 
 dfm_counts <- dfm(toks)
 
-dim(dfm_counts)             # number of documents, number of unique words
-topfeatures(dfm_counts, 20) # most frequent words across the whole corpus
+dim(dfm_counts)             
+topfeatures(dfm_counts, 20) 
 ```
 
 ```{r}
 #| label: tfidf
 
-dfm_tfidf_w <- dfm_tfidf(dfm_counts)   # TF-IDF weighted version of the DFM
+dfm_tfidf_w <- dfm_tfidf(dfm_counts)   
 
-topfeatures(dfm_tfidf_w, 20)           # highest TF-IDF words overall
+topfeatures(dfm_tfidf_w, 20)           
 ```
 
 ```{r}
@@ -220,8 +220,8 @@ One caution: this TF-IDF uses raw counts, so long texts such as Smith_Wealth (38
 
 dfm_trim5 <- dfm_trim(dfm_counts, min_termfreq = 5)
 
-dim(dfm_counts)  # before trimming
-dim(dfm_trim5)   # after trimming
+dim(dfm_counts)  
+dim(dfm_trim5)   
 ```
 
 ```{r}
@@ -229,8 +229,8 @@ dim(dfm_trim5)   # after trimming
 
 sim_r <- textstat_simil(dfm_trim5, margin = "documents", method = "correlation")
 
-r_mat <- as.matrix(sim_r)   # convert to a normal 23 x 23 matrix
-r_mat <- round(r_mat, 3)    # round for readability (cosmetic only)
+r_mat <- as.matrix(sim_r)   
+r_mat <- round(r_mat, 3)    
 
 dim(r_mat)
 r_mat[1:5, 1:5]
@@ -242,8 +242,8 @@ r_mat[1:5, 1:5]
 #| fig-height: 9
 
 heat_df <- as.data.frame(r_mat) %>%
-  rownames_to_column("doc_i") %>%                              # first document in the pair
-  pivot_longer(-doc_i, names_to = "doc_j", values_to = "r")    # second document + correlation
+  rownames_to_column("doc_i") %>%                              
+  pivot_longer(-doc_i, names_to = "doc_j", values_to = "r")    
 
 heatmap_plot <- ggplot(heat_df, aes(x = doc_j, y = doc_i, fill = r)) +
   geom_tile() +
@@ -343,7 +343,7 @@ syntax_texts %>%
 anno_file <- "outputs/udpipe_annotations.rds"
 
 if (file.exists(anno_file)) {
-  anno_df <- readRDS(anno_file)            # load the saved result (fast)
+  anno_df <- readRDS(anno_file)            
 } else {
   anno_df <- syntax_texts %>%
     mutate(
@@ -355,7 +355,7 @@ if (file.exists(anno_file)) {
     rename(document = doc_id) %>%
     select(document, paragraph_id, sentence_id, sentence, token_id, token,
            lemma, upos, feats, head_token_id, dep_rel)
-  saveRDS(anno_df, anno_file)              # save it so we never parse twice
+  saveRDS(anno_df, anno_file)              
 }
 
 anno_df %>%
@@ -480,7 +480,7 @@ write_csv(all_measures, "outputs/syntactic_complexity_summary.csv")
 #| label: example-candidates
 
 sentence_text <- anno_df %>%
-  distinct(document, sentence_id, sentence)   # full text of each sentence
+  distinct(document, sentence_id, sentence)   
 
 typical <- all_measures %>%
   select(document, MLS, DC_per_S)
@@ -490,8 +490,8 @@ set.seed(570)
 example_candidates <- sentence_df %>%
   left_join(typical, by = "document") %>%
   filter(
-    abs(words - MLS) <= 3,                  # close to the average length
-    dep_clauses == round(DC_per_S)          # typical amount of subordination
+    abs(words - MLS) <= 3,                  
+    dep_clauses == round(DC_per_S)          
   ) %>%
   left_join(sentence_text, by = c("document", "sentence_id")) %>%
   group_by(document) %>%

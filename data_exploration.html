@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Muhammad Baqir">
-<meta name="dcterms.date" content="2026-10-12">
+<meta name="dcterms.date" content="2026-10-16">
 
 <title>IDS 570 Data Exploration (Structured)</title>
 <style>
@@ -2255,7 +2255,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">October 12, 2026</p>
+      <p class="date">October 16, 2026</p>
     </div>
   </div>
   
@@ -2270,12 +2270,12 @@ vertical-align: -.125em;
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)          <span class="co"># data handling and plots (includes readr, dplyr, stringr, ggplot2)</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(quanteda)           <span class="co"># corpus, tokens, DFM, TF-IDF</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(quanteda.textstats) <span class="co"># Pearson correlation between documents</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidytext)           <span class="co"># tidy text tools</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(udpipe)             <span class="co"># dependency parser for syntax (Approach 3)</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)              <span class="co"># nice tables</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)          </span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(quanteda)           </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(quanteda.textstats) </span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidytext)           </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(udpipe)             </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)              </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="step-0-reading-and-cleaning-the-corpus" class="level2">
@@ -2283,14 +2283,14 @@ vertical-align: -.125em;
 <section id="reading-the-texts" class="level3">
 <h3 class="anchored" data-anchor-id="reading-the-texts">Reading the texts</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>file_paths <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="st">&quot;Files&quot;</span>, <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.txt$&quot;</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>)  <span class="co"># find every .txt file in Files/</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>file_paths <span class="ot">&lt;-</span> <span class="fu">list.files</span>(<span class="st">&quot;Files&quot;</span>, <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.txt$&quot;</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>)  </span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>corpus_df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">doc_id =</span> tools<span class="sc">::</span><span class="fu">file_path_sans_ext</span>(<span class="fu">basename</span>(file_paths)),  <span class="co"># file name without &quot;.txt&quot;</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">text   =</span> <span class="fu">map_chr</span>(file_paths, read_file)                    <span class="co"># read each file as one long string</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">doc_id =</span> tools<span class="sc">::</span><span class="fu">file_path_sans_ext</span>(<span class="fu">basename</span>(file_paths)),  </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">text   =</span> <span class="fu">map_chr</span>(file_paths, read_file)                    </span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(corpus_df)  <span class="co"># should print 23</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(corpus_df)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 23</code></pre>
 </div>
@@ -2303,7 +2303,7 @@ vertical-align: -.125em;
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;wealth&quot;</span>                     <span class="ot">=</span> <span class="st">&quot;Smith_Wealth&quot;</span></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  ))</span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>corpus_df<span class="sc">$</span>doc_id  <span class="co"># print all 23 names</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>corpus_df<span class="sc">$</span>doc_id  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code> [1] &quot;A06785&quot;           &quot;A06786&quot;           &quot;A06788&quot;           &quot;A06789&quot;          
  [5] &quot;A06790&quot;           &quot;A06791&quot;           &quot;A07594_Circle&quot;    &quot;A07886&quot;          
@@ -2319,11 +2319,11 @@ vertical-align: -.125em;
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>corpus_df <span class="ot">&lt;-</span> corpus_df <span class="sc">%&gt;%</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">text_original =</span> text,                       <span class="co"># keep an untouched copy</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">long_s_before =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;ſ&quot;</span>),       <span class="co"># how many long S before</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">text_original =</span> text,                       </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">long_s_before =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;ſ&quot;</span>),       </span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">text          =</span> <span class="fu">str_replace_all</span>(text, <span class="st">&quot;ſ&quot;</span>, <span class="st">&quot;s&quot;</span>),</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">long_s_after  =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;ſ&quot;</span>),       <span class="co"># should be 0 everywhere</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_words       =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">S+&quot;</span>)     <span class="co"># rough word count per text</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">long_s_after  =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;ſ&quot;</span>),       </span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_words       =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">S+&quot;</span>)     </span>
 <span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>corpus_df <span class="sc">%&gt;%</span></span>
@@ -2490,7 +2490,7 @@ vertical-align: -.125em;
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>corpus_df <span class="ot">&lt;-</span> corpus_df <span class="sc">%&gt;%</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">illegible_before =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;●&quot;</span>),</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">text             =</span> <span class="fu">str_replace_all</span>(text, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">S*●</span><span class="sc">\\</span><span class="st">S*&quot;</span>, <span class="st">&quot; &quot;</span>),  <span class="co"># delete any word containing ●</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">text             =</span> <span class="fu">str_replace_all</span>(text, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">S*●</span><span class="sc">\\</span><span class="st">S*&quot;</span>, <span class="st">&quot; &quot;</span>),  </span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">illegible_after  =</span> <span class="fu">str_count</span>(text, <span class="st">&quot;●&quot;</span>)</span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  )</span>
 <span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
@@ -2649,16 +2649,16 @@ vertical-align: -.125em;
 <span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>toks <span class="ot">&lt;-</span> toks <span class="sc">%&gt;%</span></span>
 <span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tokens_remove</span>(<span class="at">pattern =</span> <span class="fu">c</span>(<span class="fu">stopwords</span>(<span class="st">&quot;en&quot;</span>), custom_stop)) <span class="sc">%&gt;%</span></span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tokens_select</span>(<span class="at">min_nchar =</span> <span class="dv">3</span>)   <span class="co"># keep only words with 3 or more letters</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tokens_select</span>(<span class="at">min_nchar =</span> <span class="dv">3</span>)   </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>dfm_counts <span class="ot">&lt;-</span> <span class="fu">dfm</span>(toks)</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dfm_counts)             <span class="co"># number of documents, number of unique words</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dfm_counts)             </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1]    23 23823</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">topfeatures</span>(dfm_counts, <span class="dv">20</span>) <span class="co"># most frequent words across the whole corpus</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">topfeatures</span>(dfm_counts, <span class="dv">20</span>) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      money       trade       great         one        much       price 
        3204        3197        3162        2960        2205        2091 
@@ -2671,9 +2671,9 @@ vertical-align: -.125em;
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>dfm_tfidf_w <span class="ot">&lt;-</span> <span class="fu">dfm_tfidf</span>(dfm_counts)   <span class="co"># TF-IDF weighted version of the DFM</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>dfm_tfidf_w <span class="ot">&lt;-</span> <span class="fu">dfm_tfidf</span>(dfm_counts)   </span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">topfeatures</span>(dfm_tfidf_w, <span class="dv">20</span>)           <span class="co"># highest TF-IDF words overall</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="fu">topfeatures</span>(dfm_tfidf_w, <span class="dv">20</span>)           </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      labor     capital     however     revenue      moneys       price 
   1072.3655    399.7500    392.3526    330.2193    299.7819    274.5042 
@@ -2831,11 +2831,11 @@ commodities         tax
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>dfm_trim5 <span class="ot">&lt;-</span> <span class="fu">dfm_trim</span>(dfm_counts, <span class="at">min_termfreq =</span> <span class="dv">5</span>)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dfm_counts)  <span class="co"># before trimming</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dfm_counts)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1]    23 23823</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dfm_trim5)   <span class="co"># after trimming</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(dfm_trim5)   </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1]   23 7571</code></pre>
 </div>
@@ -2843,8 +2843,8 @@ commodities         tax
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>sim_r <span class="ot">&lt;-</span> <span class="fu">textstat_simil</span>(dfm_trim5, <span class="at">margin =</span> <span class="st">&quot;documents&quot;</span>, <span class="at">method =</span> <span class="st">&quot;correlation&quot;</span>)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>r_mat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(sim_r)   <span class="co"># convert to a normal 23 x 23 matrix</span></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>r_mat <span class="ot">&lt;-</span> <span class="fu">round</span>(r_mat, <span class="dv">3</span>)    <span class="co"># round for readability (cosmetic only)</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>r_mat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(sim_r)   </span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>r_mat <span class="ot">&lt;-</span> <span class="fu">round</span>(r_mat, <span class="dv">3</span>)    </span>
 <span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(r_mat)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2862,8 +2862,8 @@ A06790  0.310  0.452  0.440  0.381  1.000</code></pre>
 </div>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>heat_df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(r_mat) <span class="sc">%&gt;%</span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames_to_column</span>(<span class="st">&quot;doc_i&quot;</span>) <span class="sc">%&gt;%</span>                              <span class="co"># first document in the pair</span></span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>doc_i, <span class="at">names_to =</span> <span class="st">&quot;doc_j&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;r&quot;</span>)    <span class="co"># second document + correlation</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rownames_to_column</span>(<span class="st">&quot;doc_i&quot;</span>) <span class="sc">%&gt;%</span>                              </span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>doc_i, <span class="at">names_to =</span> <span class="st">&quot;doc_j&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;r&quot;</span>)    </span>
 <span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>heatmap_plot <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(heat_df, <span class="fu">aes</span>(<span class="at">x =</span> doc_j, <span class="at">y =</span> doc_i, <span class="at">fill =</span> r)) <span class="sc">+</span></span>
 <span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_tile</span>() <span class="sc">+</span></span>
@@ -3044,7 +3044,7 @@ A06790  0.310  0.452  0.440  0.381  1.000</code></pre>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>anno_file <span class="ot">&lt;-</span> <span class="st">&quot;outputs/udpipe_annotations.rds&quot;</span></span>
 <span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">file.exists</span>(anno_file)) {</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  anno_df <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(anno_file)            <span class="co"># load the saved result (fast)</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  anno_df <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(anno_file)            </span>
 <span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
 <span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  anno_df <span class="ot">&lt;-</span> syntax_texts <span class="sc">%&gt;%</span></span>
 <span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
@@ -3056,7 +3056,7 @@ A06790  0.310  0.452  0.440  0.381  1.000</code></pre>
 <span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rename</span>(<span class="at">document =</span> doc_id) <span class="sc">%&gt;%</span></span>
 <span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(document, paragraph_id, sentence_id, sentence, token_id, token,</span>
 <span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a>           lemma, upos, feats, head_token_id, dep_rel)</span>
-<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">saveRDS</span>(anno_df, anno_file)              <span class="co"># save it so we never parse twice</span></span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">saveRDS</span>(anno_df, anno_file)              </span>
 <span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a>anno_df <span class="sc">%&gt;%</span></span>
@@ -3234,7 +3234,7 @@ A06790  0.310  0.452  0.440  0.381  1.000</code></pre>
 <h3 class="anchored" data-anchor-id="example-sentences">Example sentences</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>sentence_text <span class="ot">&lt;-</span> anno_df <span class="sc">%&gt;%</span></span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(document, sentence_id, sentence)   <span class="co"># full text of each sentence</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(document, sentence_id, sentence)   </span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>typical <span class="ot">&lt;-</span> all_measures <span class="sc">%&gt;%</span></span>
 <span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(document, MLS, DC_per_S)</span>
@@ -3244,8 +3244,8 @@ A06790  0.310  0.452  0.440  0.381  1.000</code></pre>
 <span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>example_candidates <span class="ot">&lt;-</span> sentence_df <span class="sc">%&gt;%</span></span>
 <span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(typical, <span class="at">by =</span> <span class="st">&quot;document&quot;</span>) <span class="sc">%&gt;%</span></span>
 <span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
-<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">abs</span>(words <span class="sc">-</span> MLS) <span class="sc">&lt;=</span> <span class="dv">3</span>,                  <span class="co"># close to the average length</span></span>
-<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>    dep_clauses <span class="sc">==</span> <span class="fu">round</span>(DC_per_S)          <span class="co"># typical amount of subordination</span></span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">abs</span>(words <span class="sc">-</span> MLS) <span class="sc">&lt;=</span> <span class="dv">3</span>,                  </span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>    dep_clauses <span class="sc">==</span> <span class="fu">round</span>(DC_per_S)          </span>
 <span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
 <span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(sentence_text, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;document&quot;</span>, <span class="st">&quot;sentence_id&quot;</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(document) <span class="sc">%&gt;%</span></span>
