@@ -577,7 +577,7 @@ A06785 and A07594_Circle are connected in vocabulary, since each points to the o
 
 - *TF-IDF* is good at showing what makes each document stand out, and it found topic groups and cross-references quickly. Its weakness is that it cannot tell content from noise. An old spelling or an abbreviation counts as "distinctive" just like a real topic word. Its scores also depend on document length.
 - *Pearson correlation* is good at giving an overview of the whole corpus in one picture, and it does not depend on document length. Its weakness is that a high r does not explain why two texts are similar. It cannot separate shared subject matter from shared spelling or duplicate editions, and every pair here was positively correlated, so it shows degrees of similarity rather than real opposites.
-- *Syntactic complexity* is good at capturing writing style, which the other two methods cannot see at all. Its weaknesses are that it is slow (so we could only compare two texts), the parser was trained on modern English, and the sentence counts depend on where the parser decides a sentence ends.
+- *Syntactic complexity* is good at capturing writing style, which the other two methods cannot see at all. Its weaknesses are that it is slow (so I could only compare two texts), the parser was trained on modern English, and the sentence counts depend on where the parser decides a sentence ends.
 
 **Conclusion.** 
 
